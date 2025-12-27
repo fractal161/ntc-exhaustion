@@ -5,12 +5,13 @@ const GAME_TYPE = {
 };
 
 export const PATTERN_MAX_INDEXES = {
-	B: 3, // null, 0, 1 (Binary)
-	T: 4, // null, 0, 1, 2 (Ternary)
-	Q: 6, // null, 0, 1, 2, 3, 4 (Quintic)
-	D: 11, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 (Digits)
-	L: 13, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B (Level)
-	A: 17, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F (Alphanums)
+	'-': 18, // null, 0-9, A-F, minus (Minus sign)
+	'B': 3, // null, 0, 1 (Binary)
+	'T': 4, // null, 0, 1, 2 (Ternary)
+	'Q': 6, // null, 0, 1, 2, 3, 4 (Quintic)
+	'D': 11, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 (Digits)
+	'L': 13, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B (Level)
+	'A': 17, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F (Alphanums)
 };
 
 export const GYM_PAUSE_LUMA_THRESHOLD = 75;
@@ -19,13 +20,13 @@ export const SHINE_LUMA_THRESHOLD = 75; // Since shine is white, should this thr
 export const REFERENCE_SIZE = { w: 512, h: 448 };
 export const REFERENCE_LOCATIONS = {
 	score: {
-		crop: { x: 384, y: 112, w: 94, h: 14 },
-		pattern: 'ADDDDD',
+		crop: { x: 368, y: 112, w: 110, h: 14 },
+		pattern: '-ADDDDD',
 		luma: true,
 	},
 	score7: {
-		crop: { x: 384, y: 112, w: 110, h: 14 },
-		pattern: 'DDDDDDD',
+		crop: { x: 368, y: 112, w: 126, h: 14 },
+		pattern: '-DDDDDDD',
 		luma: true,
 	},
 	level: { crop: { x: 416, y: 320, w: 30, h: 14 }, pattern: 'TD', luma: true }, // TD, because we only care about start level, which is 29 or lower
@@ -69,8 +70,8 @@ export function getDigitsWidth(n) {
 const piece_counter = { w: getDigitsWidth(3), h: 14 };
 
 export const TASK_RESIZE = {
-	score: { w: getDigitsWidth(6), h: 14 },
-	score7: { w: getDigitsWidth(7), h: 14 },
+	score: { w: getDigitsWidth(7), h: 14 }, // '-ADDDDD' = 7 chars
+	score7: { w: getDigitsWidth(8), h: 14 }, // '-DDDDDDD' = 8 chars
 	level: { w: getDigitsWidth(2), h: 14 },
 	lines: { w: getDigitsWidth(3), h: 14 },
 	field: { w: 79, h: 159 },

@@ -358,11 +358,11 @@ export class NTC_Producer_Calibration extends NtcComponent {
 		const needs7 = !!this.#domrefs.score7.checked;
 		const is6 =
 			!config.score7 &&
-			task.pattern.length === 6 &&
+			task.pattern.length === 7 && // '-ADDDDD' = 7 chars
 			task.canvas.width === TASK_RESIZE.score.w;
 		const is7 =
 			config.score7 &&
-			task.pattern.length === 7 &&
+			task.pattern.length === 8 && // '-DDDDDDD' = 8 chars
 			task.canvas.width === TASK_RESIZE.score7.w;
 
 		// only update for valid transition, use positive conditions for each of comprehension

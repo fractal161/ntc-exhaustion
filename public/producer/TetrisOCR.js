@@ -8,6 +8,7 @@ const digit_canvas_1 = document.createElement('canvas');
 
 const DIGITS = '0123456789ABCDEF'.split('');
 DIGITS.unshift('null');
+DIGITS.push('minus');
 
 async function getTemplateData(digit) {
 	const response = await fetch(`/ocr/${digit.toLowerCase()}.png`);

@@ -336,6 +336,45 @@ export class CpuTetrisOCR extends TetrisOCR {
 		return digits;
 	}
 
+	ocrScore(source_img, task) {
+		// Special score OCR that handles minus sign at position 0
+		const digits = Array(task.pattern.length);
+		const img = crop(
+			source_img,
+			task.packing_pos.x,
+			task.packing_pos.y,
+			task.canvas.width,
+			task.canvas.height,
+			task.img
+		);
+
+		for (let idx = digits.length; idx--; ) {
+			const char = task.pattern[idx];
+
+			crop(img, idx * 16, 0, 14, 14, this.digit_img);
+
+			const digit = this.getDigit(
+				this.digit_img.data,
+				PATTERN_MAX_INDEXES[char],
+				task.red_luma
+			);
+
+			if (digit < 0) return null;
+
+			// Position 0 is the minus sign: keep template index as-is
+			// (0 = no minus, 17 = minus present)
+			if (idx === 0) {
+				digits[idx] = digit;
+			} else {
+				// Other positions: null template (0) is invalid
+				if (digit === 0) return null;
+				digits[idx] = digit - 1;
+			}
+		}
+
+		return digits;
+	}
+
 	hasShine(img, block_x, block_y) {
 		// extract the shine area at the location supplied
 		const shine_width = 2;
@@ -361,7 +400,7 @@ export class CpuTetrisOCR extends TetrisOCR {
 	}
 
 	scanScore(source_img) {
-		return this.ocrDigits(source_img, this.config.tasks.score);
+		return this.ocrScore(source_img, this.config.tasks.score);
 	}
 
 	scanLevel(source_img) {

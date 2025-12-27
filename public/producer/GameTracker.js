@@ -282,7 +282,7 @@ export default class GameTracker extends EventTarget {
 			color2,
 			color3,
 
-			score: GameTracker.digitsToValue(
+			score: GameTracker.scoreToValue(
 				this.score_fixer.fix(dispatch_frame.score)
 			), // note: nulls are passthrough
 
@@ -422,6 +422,19 @@ GameTracker.digitsToValue = function digitsToValue(digits) {
 		(acc, v, idx) => acc + v * Math.pow(10, digits.length - idx - 1),
 		0
 	);
+};
+
+GameTracker.scoreToValue = function scoreToValue(scoreDigits) {
+	if (!scoreDigits) return null;
+
+	// Score pattern is '-ADDDDD' or '-DDDDDDD'
+	// Position 0: minus sign (0 = no minus/null template, 17 = minus template)
+	// Positions 1+: alphanumeric score digits
+	const hasMinusSign = scoreDigits[0] === 17;
+	const digitsPart = scoreDigits.slice(1);
+
+	const value = GameTracker.digitsToValue(digitsPart);
+	return hasMinusSign ? -value : value;
 };
 
 GameTracker.arrEqual = function arrEqual(arr1, arr2) {

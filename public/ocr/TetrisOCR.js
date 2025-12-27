@@ -3,12 +3,13 @@ import { bicubic, crop, luma } from '/ocr/image_tools.js';
 import { rgbToOklab, findClosestOklabIndex } from '/ocr/utils.js';
 
 const PATTERN_MAX_INDEXES = {
-	B: 3, // null, 0, 1 (Binary)
-	T: 4, // null, 0, 1, 2 (Ternary)
-	Q: 6, // null, 0, 1, 2, 3, 4 (Quintic)
-	D: 11, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 (Digits)
-	L: 13, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B (Level)
-	A: 17, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F (Alphanums)
+	'-': 18, // null, 0-9, A-F, minus (Minus sign)
+	'B': 3, // null, 0, 1 (Binary)
+	'T': 4, // null, 0, 1, 2 (Ternary)
+	'Q': 6, // null, 0, 1, 2, 3, 4 (Quintic)
+	'D': 11, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 (Digits)
+	'L': 13, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B (Level)
+	'A': 17, // null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, A, B, C, D, E, F (Alphanums)
 };
 
 const PERF_METHODS = [
@@ -41,8 +42,8 @@ function getDigitsWidth(n) {
 
 // Resize areas based on logical NES pixels (2x for digits)
 const TASK_RESIZE = {
-	score: [getDigitsWidth(6), 14],
-	score7: [getDigitsWidth(7), 14],
+	score: [getDigitsWidth(7), 14], // '-ADDDDD' = 7 chars
+	score7: [getDigitsWidth(8), 14], // '-DDDDDDD' = 8 chars
 	level: [getDigitsWidth(2), 14],
 	lines: [getDigitsWidth(3), 14],
 	field: [79, 159],
@@ -372,7 +373,7 @@ export default class TetrisOCR extends EventTarget {
 	}
 
 	scanScore(source_img) {
-		return this.ocrDigits(source_img, this.config.tasks.score);
+		return this.ocrScore(source_img, this.config.tasks.score);
 	}
 
 	scanLevel(source_img) {
@@ -469,6 +470,41 @@ export default class TetrisOCR extends EventTarget {
 			if (!digit) return null;
 
 			digits[idx] = digit - 1;
+		}
+
+		return digits;
+	}
+
+	ocrScore(source_img, task) {
+		// Special score OCR that handles minus sign at position 0
+		const [x, y, w, h] = this.getCropCoordinates(task);
+		const digits = Array(task.pattern.length);
+
+		crop(source_img, x, y, w, h, task.crop_img);
+		bicubic(task.crop_img, task.scale_img);
+
+		for (let idx = digits.length; idx--; ) {
+			const char = task.pattern[idx];
+
+			crop(task.scale_img, idx * 16, 0, 14, 14, this.digit_img);
+
+			const digit = this.getDigit(
+				this.digit_img.data,
+				PATTERN_MAX_INDEXES[char],
+				task.red
+			);
+
+			if (digit < 0) return null;
+
+			// Position 0 is the minus sign: keep template index as-is
+			// (0 = no minus, 17 = minus present)
+			if (idx === 0) {
+				digits[idx] = digit;
+			} else {
+				// Other positions: null template (0) is invalid
+				if (digit === 0) return null;
+				digits[idx] = digit - 1;
+			}
 		}
 
 		return digits;

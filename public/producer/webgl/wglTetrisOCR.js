@@ -762,7 +762,7 @@ export class WGlTetrisOCR extends GpuTetrisOCR {
 
 		// hgandle digit fields
 		this.digitFields.forEach(({ name, task }) => {
-			const matches = task.patternJobs.map(curDigitJobs => {
+			const matches = task.patternJobs.map((curDigitJobs, posIdx) => {
 				const lumaSses = allDigitsJobs.subarray(
 					curSseIdx,
 					curSseIdx + curDigitJobs.length
@@ -771,7 +771,19 @@ export class WGlTetrisOCR extends GpuTetrisOCR {
 
 				curSseIdx += curDigitJobs.length;
 
-				return indexMatch ? indexMatch - 1 : null;
+				// indexMatch is 0-based index, -1 means no match found
+				if (indexMatch < 0) return null;
+
+				// For score field, position 0 is the minus sign: keep template index as-is
+				// (0 = no minus, 17 = minus present)
+				if (name === 'score' && posIdx === 0) {
+					return indexMatch; // Keep template index
+				}
+
+				// For all other positions (including non-zero score positions):
+				// null template (0) is invalid
+				if (indexMatch === 0) return null;
+				return indexMatch - 1; // Convert to digit value
 			});
 
 			res[name] = matches.some(v => v === null) ? null : matches;

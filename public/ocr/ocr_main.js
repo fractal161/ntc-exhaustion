@@ -17,8 +17,8 @@ import speak from '/views/tts.js';
 
 const reference_size = [512, 448];
 const reference_locations = {
-	score: { crop: [384, 112, 94, 14], pattern: 'ADDDDD' },
-	score7: { crop: [384, 112, 110, 14], pattern: 'DDDDDDD' },
+	score: { crop: [368, 112, 110, 14], pattern: '-ADDDDD' },
+	score7: { crop: [368, 112, 126, 14], pattern: '-DDDDDDD' },
 	level: { crop: [416, 320, 30, 14], pattern: 'TD' }, // TD, because we only care about start level, which is 29 or lower
 	lines: { crop: [304, 32, 46, 14], pattern: 'QDD' },
 	field_w_borders: { crop: [190, 78, 162, 324] },
