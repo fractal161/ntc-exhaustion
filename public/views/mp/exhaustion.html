@@ -531,6 +531,19 @@
 					--score-width: 333px;
 				}
 			}
+
+			@keyframes redFlash {
+				0% {
+					color: red;
+				}
+				100% {
+					color: inherit;
+				}
+			}
+
+			.score.score-decrease .aligner > .value {
+				animation: 1s cubic-bezier(0.08, 0.8, 0.2, 1) redFlash;
+			}
 		</style>
 	</head>
 	<body>
@@ -976,6 +989,9 @@
 						}
 					);
 
+					// Initialize score tracking for exhaustion mode
+					player.previous_score = 0;
+
 					if (QueryString.get('invisible') === '1') {
 						InvisibleMixin(player);
 					}
@@ -1084,6 +1100,7 @@
 					player.onGameStart = () => {
 						player.is_chasing_down = false;
 						player.dom.drought_box.classList.remove('active');
+						player.previous_score = 0; // Reset score tracking
 
 						if (!show_runways) return;
 
@@ -1342,7 +1359,38 @@
 				};
 
 				match_players.forEach(player => {
-					player.onScore = updateMatchStats;
+					const originalOnScore = updateMatchStats;
+
+					player.onScore = function (frame) {
+						// Get current score
+						const current_score = this.getScore();
+
+						// Check for score decrease
+						if (current_score < this.previous_score) {
+							// Remove class first (if it exists)
+							this.dom.score_box.classList.remove('score-decrease');
+
+							// Force a reflow to restart the animation
+							void this.dom.score_box.offsetWidth;
+
+							// Add class to trigger/restart animation
+							this.dom.score_box.classList.add('score-decrease');
+
+							// Clear any existing timeout
+							if (this.flashTimeout) clearTimeout(this.flashTimeout);
+
+							// Remove class after animation completes to clean up
+							this.flashTimeout = setTimeout(() => {
+								this.dom.score_box.classList.remove('score-decrease');
+							}, 400); // Match animation duration
+						}
+
+						// Update previous score
+						this.previous_score = current_score;
+
+						// Call original score handler
+						originalOnScore.call(this, frame);
+					};
 				});
 			}
 

@@ -172,6 +172,8 @@ export default class BinaryFrame {
 			pojo.level = f[bidx++];
 
 			pojo.score = (f[bidx++] << 16) | (f[bidx++] << 8) | f[bidx++];
+		// Convert from unsigned 24-bit to signed (check if sign bit is set)
+		if (pojo.score & 0x800000) pojo.score |= 0xff000000;
 
 			pojo.instant_das = (f[bidx] & 0b11111000) >> 3;
 			pojo.preview = f[bidx++] & 0b111;
