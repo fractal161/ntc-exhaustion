@@ -544,31 +544,97 @@
 			.score.score-decrease .aligner > .value {
 				animation: 1s cubic-bezier(0.08, 0.8, 0.2, 1) redFlash;
 			}
+
+			.custom_curtain {
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				align-items: center;
+				height: 100%;
+				width: 100%;
+			}
+
+			.curtain_stats {
+				box-sizing: border-box;
+				width: 100%;
+				align-self: flex-start;
+				padding: 0px 25px;
+			}
+			.curtain_stats > * {
+				display: flex;
+				justify-content: space-between;
+				margin: 36px 0px;
+				font-family: 'Oxanium';
+				font-size: 42px;
+			}
+			.curtain_stats > * > span:first-child {
+				font-weight: bold;
+			}
+			.curtain_stats > * {
+				opacity: 0;
+			}
+			.curtain_stats.visible > * {
+				animation: fadeIn 0.5s ease-in forwards;
+			}
+			.curtain_stats.visible > *:nth-child(1) {
+				animation-delay: 0s;
+			}
+			.curtain_stats.visible > *:nth-child(2) {
+				animation-delay: 0.15s;
+			}
+			.curtain_stats.visible > *:nth-child(3) {
+				animation-delay: 0.3s;
+			}
+			.curtain_stats.visible > *:nth-child(4) {
+				animation-delay: 0.45s;
+			}
+			.curtain_stats.visible > *:nth-child(5) {
+				animation-delay: 0.6s;
+			}
+
+			@keyframes fadeIn {
+				from {
+					opacity: 0;
+				}
+				to {
+					opacity: 1;
+				}
+			}
 		</style>
 	</head>
 	<body>
 		<template id="curtain_0">
 			<div class="custom_curtain">
-				<br />
-				<br />
 				<img
-					src="/images/CTWC_DAS_LOGO_noxperion.webp"
-					style="max-width: 250px"
+					src="/brand/3oston_logo_white.png"
+					style="width: 280px; padding-top: 50px"
 				/>
-				<br />
-				<br />
-				<p style="font-size: 12px">hosted by</p>
+				<div class="curtain_stats">
+					<div>
+						<span>Raw</span>
+						<span>9999999</span>
+					</div>
+					<div class="penalty">
+						<span>Cost</span>
+						<span>999999</span>
+					</div>
+					<div>
+						<span>30hz</span>
+						<span>30</span>
+					</div>
+					<div>
+						<span>20hz</span>
+						<span>30</span>
+					</div>
+					<div>
+						<span>Other</span>
+						<span>30</span>
+					</div>
+				</div>
 				<img
-					src="/images/sponsors/logo-experion.svg"
-					style="width: 280px; margin: -30px 0"
+					src="/brand/logo.v3.white.3x.png"
+					style="max-width: 90px; padding-bottom: 50px"
 				/>
-				<br />
-				<br />
-				<br />
-				<br />
-				<br />
-				<img src="/brand/logo.v3.white.3x.png" style="max-width: 90px" />
-				<br />
 			</div>
 		</template>
 		<template id="player">
@@ -747,12 +813,7 @@
 				? parseInt(QueryString.get('sponsorimg'), 10)
 				: 0;
 
-			let curtain_template;
-			if (/^[0-6]$/.test(QueryString.get('curtain'))) {
-				curtain_template = document.getElementById(
-					`curtain_${QueryString.get('curtain')}`
-				);
-			}
+			let curtain_template = document.getElementById('curtain_0');
 
 			// triple-typed variable... that is disgusting -_-
 			// false: never show runways (default)
@@ -1008,6 +1069,13 @@
 						player.dom.drought_box.classList.remove('active');
 						player.previous_score = 0; // Reset score tracking
 
+						// Reset curtain stats visibility
+						const curtain_stats =
+							player.dom.curtain?.querySelector('.curtain_stats');
+						if (curtain_stats) {
+							curtain_stats.classList.remove('visible');
+						}
+
 						if (!show_runways) return;
 
 						[...player.dom.runways_box.querySelectorAll('.active')].forEach(
@@ -1060,6 +1128,21 @@
 						if (show_runways !== true) {
 							player.dom.runways_box.classList.remove('visible');
 						}
+					};
+
+					// Override _showCurtain to trigger stats animation earlier
+					player._originalShowCurtain = player._showCurtain;
+					player._showCurtain = function () {
+						this._originalShowCurtain();
+
+						// Trigger stats fade-in 500ms before curtain finishes (curtain animation is 1000ms)
+						setTimeout(() => {
+							const curtain_stats =
+								this.curtain_container?.querySelector('.curtain_stats');
+							if (curtain_stats) {
+								curtain_stats.classList.add('visible');
+							}
+						}, 500);
 					};
 
 					if (hasAds) {
