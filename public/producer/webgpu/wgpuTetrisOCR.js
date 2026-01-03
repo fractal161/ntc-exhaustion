@@ -479,6 +479,8 @@ export class WGpuTetrisOCR extends GpuTetrisOCR {
 				// For score field, position 0 is the minus sign: keep template index as-is
 				// (0 = no minus, 17 = minus present)
 				if (name === 'score' && posIdx === 0) {
+					// Only allow 0 (no minus) or 17 (minus present)
+					if (indexMatch !== 0 && indexMatch !== 17) return null;
 					return indexMatch; // Keep template index
 				}
 

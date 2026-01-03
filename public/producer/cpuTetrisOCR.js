@@ -361,9 +361,9 @@ export class CpuTetrisOCR extends TetrisOCR {
 
 			if (digit < 0) return null;
 
-			// Position 0 is the minus sign: keep template index as-is
-			// (0 = no minus, 17 = minus present)
+			// Position 0 is the minus sign: only allow 0 (no minus) or 17 (minus present)
 			if (idx === 0) {
+				if (digit !== 0 && digit !== 17) return null; // Reject indices 1-16
 				digits[idx] = digit;
 			} else {
 				// Other positions: null template (0) is invalid
