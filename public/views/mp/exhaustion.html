@@ -958,6 +958,11 @@
 
 					// Initialize score tracking for exhaustion mode
 					player.previous_score = 0;
+					player.cost_counts = new Map([
+						[100, 0],
+						[300, 0],
+						[500, 0],
+					]);
 
 					if (QueryString.get('invisible') === '1') {
 						InvisibleMixin(player);
@@ -1068,6 +1073,11 @@
 						player.is_chasing_down = false;
 						player.dom.drought_box.classList.remove('active');
 						player.previous_score = 0; // Reset score tracking
+						player.cost_counts = new Map([
+							[100, 0],
+							[300, 0],
+							[500, 0],
+						]);
 
 						// Reset curtain stats visibility
 						const curtain_stats =
@@ -1350,6 +1360,58 @@
 				match_players.forEach(player => {
 					const originalOnScore = updateMatchStats;
 
+					player.incrementCostMap = function (key) {
+						const old_value = this.cost_counts.get(key) || 0;
+						this.cost_counts.set(key, old_value + 1);
+					};
+					player.updateCostMap = function (cost) {
+						// Round down to nearest multiple of 100
+						cost = Math.floor(cost / 100) * 100;
+						if (cost === 100) {
+							this.incrementCostMap(100);
+						} else if (cost === 200) {
+							this.incrementCostMap(100);
+							this.incrementCostMap(100);
+						} else if (cost === 300) {
+							this.incrementCostMap(300);
+						} else if (cost === 400) {
+							this.incrementCostMap(100);
+							this.incrementCostMap(300);
+						} else if (cost === 500) {
+							this.incrementCostMap(500);
+						} else if (cost === 600) {
+							this.incrementCostMap(300);
+							this.incrementCostMap(300);
+						} else if (cost === 700) {
+							this.incrementCostMap(100);
+							this.incrementCostMap(100);
+							this.incrementCostMap(500);
+						} else if (cost === 800) {
+							this.incrementCostMap(300);
+							this.incrementCostMap(500);
+						} else if (cost === 900) {
+							this.incrementCostMap(300);
+							this.incrementCostMap(300);
+							this.incrementCostMap(300);
+						} else if (cost === 1000) {
+							this.incrementCostMap(500);
+							this.incrementCostMap(500);
+						} else {
+							while (cost >= 500) {
+								this.incrementCostMap(500);
+								cost -= 500;
+							}
+							while (cost >= 300) {
+								this.incrementCostMap(300);
+								cost -= 300;
+							}
+							while (cost >= 100) {
+								this.incrementCostMap(100);
+								cost -= 100;
+							}
+						}
+					};
+
 					player.onScore = function (frame) {
 						// Get current score
 						const current_score = this.getScore();
@@ -1372,6 +1434,9 @@
 							this.flashTimeout = setTimeout(() => {
 								this.dom.score_box.classList.remove('score-decrease');
 							}, 400); // Match animation duration
+
+							// update penalty tracker
+							this.updateCostMap(this.previous_score - current_score);
 						}
 
 						// Update previous score
