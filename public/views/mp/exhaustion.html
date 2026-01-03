@@ -600,6 +600,10 @@
 					opacity: 1;
 				}
 			}
+
+			.curtain-initial-hidden {
+				visibility: hidden;
+			}
 		</style>
 	</head>
 	<body>
@@ -964,6 +968,14 @@
 						[500, 0],
 					]);
 
+					// Hide curtain stats initially until first game over
+					const curtain_stats =
+						player.curtain_container?.querySelector('.curtain_stats');
+					if (curtain_stats) {
+						curtain_stats.classList.add('curtain-initial-hidden');
+					}
+					player.has_had_game_over = false;
+
 					if (QueryString.get('invisible') === '1') {
 						InvisibleMixin(player);
 					}
@@ -1070,6 +1082,7 @@
 					};
 
 					player.onGameStart = () => {
+						player.has_had_game_over = true; // Allow curtain to show on game over
 						player.is_chasing_down = false;
 						player.dom.drought_box.classList.remove('active');
 						player.previous_score = 0; // Reset score tracking
@@ -1143,6 +1156,46 @@
 					// Override _showCurtain to trigger stats animation earlier
 					player._originalShowCurtain = player._showCurtain;
 					player._showCurtain = function () {
+						// update displayed stats
+						const curtain_stats =
+							this.curtain_container?.querySelector('.curtain_stats');
+						if (!curtain_stats) return;
+
+						// Only show stats if we've had an actual game over
+						if (!player.has_had_game_over) {
+							return;
+						}
+
+						// Remove initial hidden class from stats
+						curtain_stats.classList.remove('curtain-initial-hidden');
+
+						// Get cost counts
+						const hz30_count = player.cost_counts.get(500) || 0;
+						const hz20_count = player.cost_counts.get(300) || 0;
+						const other_count = player.cost_counts.get(100) || 0;
+
+						// Calculate total cost
+						const total_cost =
+							500 * hz30_count + 300 * hz20_count + 100 * other_count;
+
+						// Get current score and calculate raw score
+						const current_score = player.getScore();
+						const raw_score = current_score + total_cost;
+
+						// Update curtain stats display
+						const stats_divs = curtain_stats.querySelectorAll('div');
+						if (stats_divs.length >= 5) {
+							stats_divs[0].querySelector('span:last-child').textContent =
+								raw_score;
+							stats_divs[1].querySelector('span:last-child').textContent =
+								total_cost;
+							stats_divs[2].querySelector('span:last-child').textContent =
+								hz30_count;
+							stats_divs[3].querySelector('span:last-child').textContent =
+								hz20_count;
+							stats_divs[4].querySelector('span:last-child').textContent =
+								other_count;
+						}
 						this._originalShowCurtain();
 
 						// Trigger stats fade-in 500ms before curtain finishes (curtain animation is 1000ms)
