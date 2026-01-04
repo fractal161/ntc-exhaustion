@@ -1449,19 +1449,6 @@
 						} else if (cost === 1000) {
 							this.incrementCostMap(500);
 							this.incrementCostMap(500);
-						} else {
-							while (cost >= 500) {
-								this.incrementCostMap(500);
-								cost -= 500;
-							}
-							while (cost >= 300) {
-								this.incrementCostMap(300);
-								cost -= 300;
-							}
-							while (cost >= 100) {
-								this.incrementCostMap(100);
-								cost -= 100;
-							}
 						}
 					};
 
