@@ -1014,6 +1014,8 @@
 						[300, 0],
 						[500, 0],
 					]);
+					player.score_at_line = new Map();
+					player.cost_at_line = new Map();
 
 					// Hide curtain stats initially until first game over
 					const curtain_stats =
@@ -1138,6 +1140,8 @@
 							[300, 0],
 							[500, 0],
 						]);
+						player.score_at_line = new Map();
+						player.cost_at_line = new Map();
 
 						// Reset curtain stats visibility
 						const curtain_stats =
@@ -1554,8 +1558,9 @@
 						const old_value = this.cost_counts.get(key) || 0;
 						this.cost_counts.set(key, old_value + 1);
 					};
-					player.updateCostMap = function (cost) {
+					player.updateCostStats = function (cost) {
 						// Round down to nearest multiple of 100
+						// cost map
 						cost = Math.floor(cost / 100) * 100;
 						if (cost === 100) {
 							this.incrementCostMap(100);
@@ -1587,11 +1592,19 @@
 							this.incrementCostMap(500);
 							this.incrementCostMap(500);
 						}
+						// update stats
+						if (cost <= 1000) {
+							const lines = this.getLines();
+							const old_cost = this.cost_at_line.get(lines) || 0;
+							this.cost_at_line.set(lines, old_cost + cost);
+						}
 					};
 
 					player.onScore = function (frame) {
 						// Get current score
 						const current_score = this.getScore();
+						const current_lines = this.getLines();
+						this.score_at_line.set(current_lines, current_score);
 
 						// Check for score decrease
 						if (current_score < this.previous_score) {
@@ -1613,7 +1626,11 @@
 							}, 400); // Match animation duration
 
 							// update penalty tracker
-							this.updateCostMap(this.previous_score - current_score);
+							this.updateCostStats(this.previous_score - current_score);
+							console.log('SCORE AT LINE');
+							console.log(this.score_at_line);
+							console.log('COST AT LINE');
+							console.log(this.cost_at_line);
 						}
 
 						// Update previous score

@@ -1106,6 +1106,10 @@ export default class Player extends EventTarget {
 		return this.game?.data?.score.current || 0;
 	}
 
+	getLines() {
+		return this.game?.data?.lines || 0;
+	}
+
 	getGameRunwayScore() {
 		return this.game?.data?.score.runway || 0;
 	}
