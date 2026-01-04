@@ -631,11 +631,30 @@
 				display: block;
 			}
 
-			.curtain_score_graph,
-			.curtain_cost_graph {
+			.curtain_score_graph {
 				display: flex;
 				align-items: center;
 				justify-content: center;
+			}
+
+			.curtain_cost_graph {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				gap: 20px;
+			}
+
+			.graph_title {
+				font-family: 'Oxanium';
+				font-size: 42px;
+				font-weight: bold;
+				color: white;
+			}
+
+			.cost_graph_canvas {
+				image-rendering: pixelated; /* Crisp 1px bars */
+				image-rendering: crisp-edges;
 			}
 
 			.curtain_stats.active,
@@ -679,7 +698,8 @@
 						<span>CURTAIN SCORE GRAPH</span>
 					</div>
 					<div class="curtain_cost_graph">
-						<span>CURTAIN COST GRAPH</span>
+						<div class="graph_title">COST GRAPH</div>
+						<canvas class="cost_graph_canvas" width="304" height="304"></canvas>
 					</div>
 				</div>
 				<img
@@ -1009,6 +1029,8 @@
 
 					// Initialize score tracking for exhaustion mode
 					player.previous_score = 0;
+					player.previous_lines = 0;
+					player.current_lines = 0;
 					player.cost_counts = new Map([
 						[100, 0],
 						[300, 0],
@@ -1135,6 +1157,8 @@
 						player.is_chasing_down = false;
 						player.dom.drought_box.classList.remove('active');
 						player.previous_score = 0; // Reset score tracking
+						player.previous_lines = 0;
+						player.current_lines = 0;
 						player.cost_counts = new Map([
 							[100, 0],
 							[300, 0],
@@ -1247,6 +1271,54 @@
 							stats_divs[4].querySelector('span:last-child').textContent =
 								other_count;
 						}
+
+						// Render cost graph
+						const costGraphCanvas =
+							this.curtain_container?.querySelector('.cost_graph_canvas');
+						if (costGraphCanvas) {
+							const ctx = costGraphCanvas.getContext('2d');
+							const width = costGraphCanvas.width;
+							const height = costGraphCanvas.height;
+							const axisWidth = 4;
+
+							// Clear canvas
+							ctx.clearRect(0, 0, width, height);
+
+							// Draw grey axes
+							ctx.fillStyle = '#808080'; // Grey color
+
+							// Left axis (vertical)
+							ctx.fillRect(0, 0, axisWidth, height);
+
+							// Bottom axis (horizontal)
+							ctx.fillRect(0, height - axisWidth, width, axisWidth);
+
+							// Set bar color to red
+							ctx.fillStyle = '#FF0000';
+
+							// Draw bars for lines 0-299
+							// Data area starts at x=axisWidth, y=0 and is 300x300px
+							for (let line = 0; line < 300; line++) {
+								const cost = this.cost_at_line.get(line) || 0;
+								const barHeight = (cost / 100) * 10; // 100 points = 10px
+
+								if (barHeight > 0) {
+									// Draw bar from bottom up (accounting for bottom axis)
+									ctx.fillRect(
+										axisWidth + line, // x position (offset by left axis)
+										height - axisWidth - barHeight, // y position (offset by bottom axis)
+										1, // width (1px)
+										barHeight // height
+									);
+								}
+							}
+
+							// Draw vertical guide lines at 100 and 200 line marks (after bars so they show on top)
+							ctx.fillStyle = '#808080'; // Grey color
+							ctx.fillRect(axisWidth + 100, 0, 2, height - axisWidth); // 100 line mark (2px wide)
+							ctx.fillRect(axisWidth + 200, 0, 2, height - axisWidth); // 200 line mark (2px wide)
+						}
+
 						this._originalShowCurtain();
 
 						// Trigger stats fade-in 500ms before curtain finishes (curtain animation is 1000ms)
@@ -1558,7 +1630,11 @@
 						const old_value = this.cost_counts.get(key) || 0;
 						this.cost_counts.set(key, old_value + 1);
 					};
-					player.updateCostStats = function (cost) {
+					player.updateCostStats = function (
+						cost,
+						current_lines,
+						previous_lines
+					) {
 						// Round down to nearest multiple of 100
 						// cost map
 						cost = Math.floor(cost / 100) * 100;
@@ -1592,11 +1668,24 @@
 							this.incrementCostMap(500);
 							this.incrementCostMap(500);
 						}
-						// update stats
+						// update stats - distribute cost across cleared lines
 						if (cost <= 1000) {
-							const lines = this.getLines();
-							const old_cost = this.cost_at_line.get(lines) || 0;
-							this.cost_at_line.set(lines, old_cost + cost);
+							const lines_cleared = current_lines - previous_lines;
+
+							if (lines_cleared > 0) {
+								// Distribute cost evenly across all cleared lines
+								const cost_per_line = cost / lines_cleared;
+
+								for (let i = 0; i < lines_cleared; i++) {
+									const line_num = previous_lines + i + 1;
+									const old_cost = this.cost_at_line.get(line_num) || 0;
+									this.cost_at_line.set(line_num, old_cost + cost_per_line);
+								}
+							} else {
+								// Fallback: if no lines were cleared, record at current line
+								const old_cost = this.cost_at_line.get(current_lines) || 0;
+								this.cost_at_line.set(current_lines, old_cost + cost);
+							}
 						}
 					};
 
@@ -1626,7 +1715,11 @@
 							}, 400); // Match animation duration
 
 							// update penalty tracker
-							this.updateCostStats(this.previous_score - current_score);
+							this.updateCostStats(
+								this.previous_score - current_score,
+								current_lines,
+								this.previous_lines
+							);
 							console.log('SCORE AT LINE');
 							console.log(this.score_at_line);
 							console.log('COST AT LINE');
@@ -1635,6 +1728,12 @@
 
 						// Update previous score
 						this.previous_score = current_score;
+
+						// Update previous_lines only when line count changes
+						if (current_lines !== this.current_lines) {
+							this.previous_lines = this.current_lines;
+							this.current_lines = current_lines;
+						}
 
 						// Call original score handler
 						originalOnScore.call(this, frame);
