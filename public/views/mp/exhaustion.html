@@ -1348,8 +1348,8 @@
 
 					player.onCurtainDown = () => {
 						// Reset the cycling timer when curtain finishes appearing
-						if (player.resetCurtainCycling) {
-							player.resetCurtainCycling(player);
+						if (player.makeContentDecision) {
+							player.makeContentDecision();
 						}
 					};
 
@@ -1514,6 +1514,28 @@
 					const [player1, player2] = match_players;
 					const opponent = activePlayer === player1 ? player2 : player1;
 
+					const getScoreArray = scores => {
+						const sortedScores = scores.sort((a, b) => a[0] - b[0]);
+						let scoreArray = [];
+						if (sortedScores[0][0] > 0) {
+							sortedScores.unshift([0, 0]);
+						}
+						for (let i = 1; i < sortedScores.length; i++) {
+							let oldScore = sortedScores[i - 1];
+							let newScore = sortedScores[i];
+							let lineDiff = newScore[0] - oldScore[0];
+							for (let j = 1; j <= lineDiff; j++) {
+								scoreArray.push(
+									oldScore[1] + ((newScore[1] - oldScore[1]) * j) / lineDiff
+								);
+							}
+						}
+						while (scoreArray.length < 300) {
+							scoreArray.push(sortedScores[sortedScores.length - 1]);
+						}
+						return scoreArray;
+					};
+
 					// Collect all scores from both players
 					const activeScores = Array.from(activePlayer.score_at_line.entries());
 					const opponentScores = Array.from(opponent.score_at_line.entries());
@@ -1613,9 +1635,9 @@
 				// Set up synchronized curtain content cycling for this match
 				let currentContentIndex = 0;
 				const contentClasses = [
-					'curtain_stats',
 					'curtain_score_graph',
 					'curtain_cost_graph',
+					'curtain_stats',
 				];
 
 				// Function to show specific content
@@ -1651,45 +1673,27 @@
 					});
 				};
 
+				const makeContentDecision = () => {
+					const curtainsHidden = match_players.filter(
+						p => p.curtain_viewport && p.curtain_viewport.hidden
+					).length;
+
+					if (curtainsHidden > 0) {
+						currentContentIndex = 0;
+					} else {
+						currentContentIndex =
+							(currentContentIndex + 1) % contentClasses.length;
+					}
+					showContent(currentContentIndex);
+				};
+
 				// Initialize - show first content (stats)
 				showContent(0);
 
 				// Cycle every 3 seconds
 				let contentCycleInterval = setInterval(() => {
-					currentContentIndex =
-						(currentContentIndex + 1) % contentClasses.length;
-					showContent(currentContentIndex);
-				}, 3000);
-
-				// Function to reset cycling (called when curtain appears)
-				const resetCurtainCycling = currentPlayer => {
-					// Check if any OTHER player (not the one whose curtain just appeared)
-					// currently has their curtain showing
-					const otherCurtainsVisible = match_players.filter(
-						p =>
-							p !== currentPlayer &&
-							p.curtain_viewport &&
-							!p.curtain_viewport.hidden
-					).length;
-
-					// Only reset if this is the first curtain to appear (no other curtains visible)
-					// Once a curtain is showing, subsequent curtains shouldn't reset the timer
-					if (otherCurtainsVisible > 0) return;
-
-					clearInterval(contentCycleInterval);
-					currentContentIndex = 0;
-					showContent(0, false); // Don't trigger fade on reset
-					contentCycleInterval = setInterval(() => {
-						currentContentIndex =
-							(currentContentIndex + 1) % contentClasses.length;
-						showContent(currentContentIndex);
-					}, 3000);
-				};
-
-				// Store reset function on players so onCurtainDown can call it
-				match_players.forEach(player => {
-					player.resetCurtainCycling = resetCurtainCycling;
-				});
+					makeContentDecision();
+				}, 5000);
 
 				sync_timers.push(contentCycleInterval);
 			});
