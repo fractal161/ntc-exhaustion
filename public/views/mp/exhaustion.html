@@ -1258,7 +1258,7 @@
 					player.onCurtainDown = () => {
 						// Reset the cycling timer when curtain finishes appearing
 						if (player.resetCurtainCycling) {
-							player.resetCurtainCycling();
+							player.resetCurtainCycling(player);
 						}
 					};
 
@@ -1448,7 +1448,20 @@
 				}, 3000);
 
 				// Function to reset cycling (called when curtain appears)
-				const resetCurtainCycling = () => {
+				const resetCurtainCycling = currentPlayer => {
+					// Check if any OTHER player (not the one whose curtain just appeared)
+					// currently has their curtain showing
+					const otherCurtainsVisible = match_players.filter(
+						p =>
+							p !== currentPlayer &&
+							p.curtain_viewport &&
+							!p.curtain_viewport.hidden
+					).length;
+
+					// Only reset if this is the first curtain to appear (no other curtains visible)
+					// Once a curtain is showing, subsequent curtains shouldn't reset the timer
+					if (otherCurtainsVisible > 0) return;
+
 					clearInterval(contentCycleInterval);
 					currentContentIndex = 0;
 					showContent(0, false); // Don't trigger fade on reset
