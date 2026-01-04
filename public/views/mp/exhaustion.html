@@ -633,8 +633,15 @@
 
 			.curtain_score_graph {
 				display: flex;
+				flex-direction: column;
 				align-items: center;
 				justify-content: center;
+				gap: 20px;
+			}
+
+			.score_graph_canvas {
+				image-rendering: pixelated;
+				image-rendering: crisp-edges;
 			}
 
 			.curtain_cost_graph {
@@ -695,7 +702,12 @@
 						</div>
 					</div>
 					<div class="curtain_score_graph">
-						<span>CURTAIN SCORE GRAPH</span>
+						<div class="graph_title">SCORE GRAPH</div>
+						<canvas
+							class="score_graph_canvas"
+							width="304"
+							height="300"
+						></canvas>
 					</div>
 					<div class="curtain_cost_graph">
 						<div class="graph_title">COST GRAPH</div>
@@ -1319,6 +1331,9 @@
 							ctx.fillRect(axisWidth + 200, 0, 2, height - axisWidth); // 200 line mark (2px wide)
 						}
 
+						// Render score graph
+						renderScoreGraph(this);
+
 						this._originalShowCurtain();
 
 						// Trigger stats fade-in 500ms before curtain finishes (curtain animation is 1000ms)
@@ -1470,6 +1485,129 @@
 
 					match_players.push(player);
 					players.push(player);
+				});
+
+				// Function to render score graph for both players
+				const renderScoreGraph = activePlayer => {
+					const canvas = activePlayer.curtain_container?.querySelector(
+						'.score_graph_canvas'
+					);
+					if (!canvas) return;
+
+					const ctx = canvas.getContext('2d');
+					const width = canvas.width;
+					const height = canvas.height;
+					const axisWidth = 4;
+					const xAxisY = 30; // X-axis at y=30 for negative scores
+					const dataWidth = 300;
+					const dataHeight = 300;
+
+					// Clear canvas
+					ctx.clearRect(0, 0, width, height);
+
+					// Draw grey axes
+					ctx.fillStyle = '#808080';
+					ctx.fillRect(0, 0, axisWidth, height); // Left axis
+					ctx.fillRect(0, height - axisWidth - xAxisY, width, axisWidth); // Bottom axis
+
+					// Get both players in the match
+					const [player1, player2] = match_players;
+					const opponent = activePlayer === player1 ? player2 : player1;
+
+					// Collect all scores from both players
+					const activeScores = Array.from(activePlayer.score_at_line.entries());
+					const opponentScores = Array.from(opponent.score_at_line.entries());
+
+					if (activeScores.length === 0 && opponentScores.length === 0) return;
+
+					// Find max score and determine threshold
+					const allScores = [...activeScores, ...opponentScores].map(
+						([_, score]) => score
+					);
+					const maxScore = Math.max(...allScores, 0);
+					const minScore = Math.min(...allScores, 0);
+
+					// Pick smallest threshold >= maxScore
+					const thresholds = [800000, 1600000];
+					const maxThreshold =
+						thresholds.find(t => t >= maxScore) ||
+						thresholds[thresholds.length - 1];
+
+					// Helper function to convert score to y-coordinate
+					const scoreToY = score => {
+						const normalized = (maxThreshold - score) / maxThreshold;
+						const baseline = height - axisWidth - xAxisY;
+						return normalized * baseline;
+					};
+
+					// Helper function to draw line graph
+					const drawLineGraph = (scores, color) => {
+						if (scores.length === 0) return;
+
+						ctx.beginPath();
+
+						// Sort by line number
+						const sortedScores = scores.sort((a, b) => a[0] - b[0]);
+
+						// Draw connecting lines
+						sortedScores.forEach(([line, score], idx) => {
+							ctx.strokeStyle = color;
+							ctx.lineWidth = 2;
+							const x = axisWidth + line;
+							const y = scoreToY(score);
+
+							if (idx === 0) {
+								ctx.moveTo(x, y);
+							} else {
+								ctx.lineTo(x, y);
+							}
+						});
+
+						ctx.stroke();
+
+						// Extend last score to right edge
+						if (sortedScores.length > 0) {
+							const [lastLine, lastScore] =
+								sortedScores[sortedScores.length - 1];
+							const lastX = axisWidth + lastLine;
+							const lastY = scoreToY(lastScore);
+							const rightEdge = axisWidth + dataWidth;
+
+							if (lastX < rightEdge) {
+								ctx.beginPath();
+								ctx.moveTo(lastX, lastY);
+								ctx.lineTo(rightEdge, lastY);
+								ctx.stroke();
+							}
+						}
+					};
+
+					// Draw opponent line first (light grey, behind)
+					drawLineGraph(opponentScores, '#CCCCCC');
+
+					// Determine active player color (green if ahead, red if behind)
+					const getActiveColor = () => {
+						if (activeScores.length === 0) return '#FF0000';
+						if (opponentScores.length === 0) return '#00FF00';
+
+						const activeLatest = activeScores[activeScores.length - 1][1];
+						const opponentLatest = opponentScores[opponentScores.length - 1][1];
+
+						return activeLatest > opponentLatest ? '#00FF00' : '#FF0000';
+					};
+
+					// Draw active player line (green/red, on top)
+					drawLineGraph(activeScores, getActiveColor());
+
+					// Draw vertical guide lines at 100 and 200
+					ctx.fillStyle = '#808080';
+					ctx.fillRect(axisWidth + 100, 0, 2, height - axisWidth);
+					ctx.fillRect(axisWidth + 200, 0, 2, height - axisWidth);
+				};
+
+				// Store render function on players for real-time updates
+				match_players.forEach(player => {
+					player.renderScoreGraph = () => renderScoreGraph(player);
 				});
 
 				// Set up synchronized curtain content cycling for this match
@@ -1720,10 +1858,6 @@
 								current_lines,
 								this.previous_lines
 							);
-							console.log('SCORE AT LINE');
-							console.log(this.score_at_line);
-							console.log('COST AT LINE');
-							console.log(this.cost_at_line);
 						}
 
 						// Update previous score
@@ -1733,6 +1867,16 @@
 						if (current_lines !== this.current_lines) {
 							this.previous_lines = this.current_lines;
 							this.current_lines = current_lines;
+						}
+
+						// Update opponent's score graph if they're on curtain
+						const opponent = match_players.find(p => p !== this);
+						if (
+							opponent &&
+							opponent.curtain_viewport &&
+							!opponent.curtain_viewport.hidden
+						) {
+							opponent.renderScoreGraph();
 						}
 
 						// Call original score handler
