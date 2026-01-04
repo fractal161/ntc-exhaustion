@@ -604,6 +604,45 @@
 			.curtain-initial-hidden {
 				visibility: hidden;
 			}
+
+			/* Curtain content cycling */
+			.curtain_content_wrapper {
+				position: relative;
+				flex: 1;
+				width: 100%;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.curtain_stats,
+			.curtain_score_graph,
+			.curtain_cost_graph {
+				position: absolute;
+				top: 50%;
+				left: 0;
+				width: 100%;
+				opacity: 0;
+				transition: opacity 0.5s ease-in-out;
+				transform: translateY(-50%);
+			}
+
+			.curtain_stats {
+				display: block;
+			}
+
+			.curtain_score_graph,
+			.curtain_cost_graph {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+
+			.curtain_stats.active,
+			.curtain_score_graph.active,
+			.curtain_cost_graph.active {
+				opacity: 1;
+			}
 		</style>
 	</head>
 	<body>
@@ -613,26 +652,34 @@
 					src="/brand/3oston_logo_white.png"
 					style="width: 280px; padding-top: 50px"
 				/>
-				<div class="curtain_stats">
-					<div>
-						<span>Raw</span>
-						<span>9999999</span>
+				<div class="curtain_content_wrapper">
+					<div class="curtain_stats">
+						<div>
+							<span>Raw</span>
+							<span>9999999</span>
+						</div>
+						<div class="penalty">
+							<span>Cost</span>
+							<span>999999</span>
+						</div>
+						<div>
+							<span>30hz</span>
+							<span>30</span>
+						</div>
+						<div>
+							<span>20hz</span>
+							<span>30</span>
+						</div>
+						<div>
+							<span>Other</span>
+							<span>30</span>
+						</div>
 					</div>
-					<div class="penalty">
-						<span>Cost</span>
-						<span>999999</span>
+					<div class="curtain_score_graph">
+						<span>CURTAIN SCORE GRAPH</span>
 					</div>
-					<div>
-						<span>30hz</span>
-						<span>30</span>
-					</div>
-					<div>
-						<span>20hz</span>
-						<span>30</span>
-					</div>
-					<div>
-						<span>Other</span>
-						<span>30</span>
+					<div class="curtain_cost_graph">
+						<span>CURTAIN COST GRAPH</span>
 					</div>
 				</div>
 				<img
@@ -1208,6 +1255,13 @@
 						}, 500);
 					};
 
+					player.onCurtainDown = () => {
+						// Reset the cycling timer when curtain finishes appearing
+						if (player.resetCurtainCycling) {
+							player.resetCurtainCycling();
+						}
+					};
+
 					if (hasAds) {
 						// custom branding
 						player._renderField = player.renderField;
@@ -1341,6 +1395,76 @@
 					match_players.push(player);
 					players.push(player);
 				});
+
+				// Set up synchronized curtain content cycling for this match
+				let currentContentIndex = 0;
+				const contentClasses = [
+					'curtain_stats',
+					'curtain_score_graph',
+					'curtain_cost_graph',
+				];
+
+				// Function to show specific content
+				const showContent = (index, triggerFade = true) => {
+					match_players.forEach(player => {
+						const curtain_container = player.curtain_container;
+						if (!curtain_container) return;
+
+						contentClasses.forEach((contentClass, idx) => {
+							const contentEl = curtain_container.querySelector(
+								`.${contentClass}`
+							);
+							if (contentEl) {
+								if (idx === index) {
+									contentEl.classList.add('active');
+
+									// Trigger staggered fade for stats only if requested
+									if (contentClass === 'curtain_stats' && triggerFade) {
+										contentEl.classList.remove('visible');
+										void contentEl.offsetWidth; // Force reflow
+										contentEl.classList.add('visible');
+									}
+								} else {
+									contentEl.classList.remove('active');
+
+									// Remove visible class when hiding stats
+									if (contentClass === 'curtain_stats') {
+										contentEl.classList.remove('visible');
+									}
+								}
+							}
+						});
+					});
+				};
+
+				// Initialize - show first content (stats)
+				showContent(0);
+
+				// Cycle every 3 seconds
+				let contentCycleInterval = setInterval(() => {
+					currentContentIndex =
+						(currentContentIndex + 1) % contentClasses.length;
+					showContent(currentContentIndex);
+				}, 3000);
+
+				// Function to reset cycling (called when curtain appears)
+				const resetCurtainCycling = () => {
+					clearInterval(contentCycleInterval);
+					currentContentIndex = 0;
+					showContent(0, false); // Don't trigger fade on reset
+					contentCycleInterval = setInterval(() => {
+						currentContentIndex =
+							(currentContentIndex + 1) % contentClasses.length;
+						showContent(currentContentIndex);
+					}, 3000);
+				};
+
+				// Store reset function on players so onCurtainDown can call it
+				match_players.forEach(player => {
+					player.resetCurtainCycling = resetCurtainCycling;
+				});
+
+				sync_timers.push(contentCycleInterval);
 			});
 
 			if (CYCLE_TDIFF) {
